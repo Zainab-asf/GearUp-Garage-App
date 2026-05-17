@@ -81,37 +81,13 @@ class _ProfileScreenState extends State<ProfilePage> {
                 '${firestoreData['firstName'] ?? ''} ${firestoreData['lastName'] ?? ''}'
                     .trim(),
             'email': _currentUser.email ?? 'No email',
-            'phone': firestoreData['phone'] ?? '+92 300 1234567',
+            'phone': firestoreData['phone'] ?? '',
             'joinDate': firestoreData['createdAt']?.toDate() ?? DateTime.now(),
             'profileImage': firestoreData['profileImage'],
             'address': firestoreData['address'] ?? 'No address provided',
             'totalBookings': totalBookings,
             'completedServices': completedServices,
-            'vehicles':
-                firestoreData['vehicles'] ??
-                [
-                  // Sample vehicles for demonstration
-                  {
-                    'id': '1',
-                    'make': 'Toyota',
-                    'model': 'Corolla',
-                    'year': '2019',
-                    'plate': 'ABC-123',
-                    'color': 'White',
-                    'mileage': '45,000 km',
-                    'image': null,
-                  },
-                  {
-                    'id': '2',
-                    'make': 'Honda',
-                    'model': 'Civic',
-                    'year': '2021',
-                    'plate': 'XYZ-789',
-                    'color': 'Black',
-                    'mileage': '25,000 km',
-                    'image': null,
-                  },
-                ],
+            'vehicles': firestoreData['vehicles'] ?? [],
           };
           _isLoading = false;
         });
@@ -121,7 +97,7 @@ class _ProfileScreenState extends State<ProfilePage> {
           _user = {
             'name': _currentUser.displayName ?? 'User',
             'email': _currentUser.email ?? 'No email',
-            'phone': '+92 300 1234567',
+            'phone': '',
             'joinDate': _currentUser.metadata.creationTime ?? DateTime.now(),
             'profileImage': _currentUser.photoURL,
             'address': 'No address provided',
@@ -686,8 +662,95 @@ class _ProfileScreenState extends State<ProfilePage> {
       _showDialog('Address Book', 'Navigate to address management screen');
   void _managePayments() =>
       _showDialog('Payment Methods', 'Navigate to payment methods screen');
-  void _addVehicle() =>
-      _showDialog('Add Vehicle', 'Navigate to add vehicle screen');
+  Future<void> _addVehicle() async {
+    final make = TextEditingController();
+    final model = TextEditingController();
+    final year = TextEditingController();
+    final plate = TextEditingController();
+    final color = TextEditingController();
+    final mileage = TextEditingController();
+
+    final vehicle = await showDialog<Map<String, dynamic>>(
+      context: context,
+      builder:
+          (context) => AlertDialog(
+            title: const Text('Add Vehicle'),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _vehicleField(make, 'Make'),
+                  _vehicleField(model, 'Model'),
+                  _vehicleField(year, 'Year', TextInputType.number),
+                  _vehicleField(plate, 'Plate'),
+                  _vehicleField(color, 'Color'),
+                  _vehicleField(mileage, 'Mileage'),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  if (make.text.trim().isEmpty || model.text.trim().isEmpty) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Make and model are required.'),
+                      ),
+                    );
+                    return;
+                  }
+                  Navigator.pop(context, {
+                    'id': DateTime.now().millisecondsSinceEpoch.toString(),
+                    'make': make.text.trim(),
+                    'model': model.text.trim(),
+                    'year': year.text.trim(),
+                    'plate': plate.text.trim(),
+                    'color': color.text.trim(),
+                    'mileage': mileage.text.trim(),
+                    'image': null,
+                  });
+                },
+                child: const Text('Save'),
+              ),
+            ],
+          ),
+    );
+
+    for (final controller in [make, model, year, plate, color, mileage]) {
+      controller.dispose();
+    }
+
+    if (vehicle == null || _currentUser == null) return;
+
+    await FirebaseFirestore.instance
+        .collection('users')
+        .doc(_currentUser.uid)
+        .set({
+          'vehicles': FieldValue.arrayUnion([vehicle]),
+        }, SetOptions(merge: true));
+
+    await _loadUserData();
+  }
+
+  Widget _vehicleField(
+    TextEditingController controller,
+    String label, [
+    TextInputType keyboardType = TextInputType.text,
+  ]) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: TextField(
+        controller: controller,
+        keyboardType: keyboardType,
+        decoration: InputDecoration(labelText: label),
+      ),
+    );
+  }
+
   void _editVehicle(Map<String, dynamic> v) => _showDialog(
     'Edit ${v['make']} ${v['model']}',
     'Navigate to edit vehicle screen',
@@ -701,8 +764,9 @@ class _ProfileScreenState extends State<ProfilePage> {
       _showDialog('Terms of Service', 'Navigate to terms of service screen');
 
   void _logout() {
+    final rootContext = context;
     showDialog(
-      context: context,
+      context: rootContext,
       builder:
           (context) => AlertDialog(
             backgroundColor: AppTheme.surface,
@@ -727,11 +791,11 @@ class _ProfileScreenState extends State<ProfilePage> {
                   backgroundColor: AppTheme.error,
                   foregroundColor: AppTheme.buttonText,
                 ),
-                onPressed: () {
+                onPressed: () async {
                   Navigator.of(context).pop();
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Logged out successfully')),
-                  );
+                  await FirebaseAuth.instance.signOut();
+                  if (!rootContext.mounted) return;
+                  Navigator.pushReplacementNamed(rootContext, 'login');
                 },
                 child: const Text('Logout'),
               ),

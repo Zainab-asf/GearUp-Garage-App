@@ -1,6 +1,9 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:gearup_garage/core/theme/app_theme.dart';
 import 'package:gearup_garage/core/ui/app_scaffold.dart';
+import 'package:gearup_garage/data/repositories/garage_repository.dart';
+import 'package:gearup_garage/presentation/customer/customer_bookings.dart';
 
 class SearchPage extends StatefulWidget {
   const SearchPage({super.key});
@@ -10,185 +13,188 @@ class SearchPage extends StatefulWidget {
 }
 
 class _SearchPageState extends State<SearchPage> {
+  final GarageRepository _repository = GarageRepository();
   final TextEditingController _searchController = TextEditingController();
   String _selectedCategory = 'All';
 
-  final List<String> _categories = [
-    'All',
-    'Car Wash',
-    'Detailing',
-    'Waxing',
-    'Interior Cleaning',
-  ];
-
-  final List<Map<String, String>> _searchResults = [
-    {
-      'title': 'Premium Car Wash',
-      'price': 'PKR 1,500',
-      'location': 'Lahore',
-      'category': 'Car Wash',
-      'image': 'assets/images/bmw.jpg',
-    },
-    {
-      'title': 'Full Car Detailing',
-      'price': 'PKR 3,500',
-      'location': 'Karachi',
-      'category': 'Detailing',
-      'image': 'assets/images/car.png',
-    },
-    {
-      'title': 'Car Waxing Service',
-      'price': 'PKR 2,000',
-      'location': 'Islamabad',
-      'category': 'Waxing',
-      'image': 'assets/images/lemborgini.jpg',
-    },
-    {
-      'title': 'Interior Deep Clean',
-      'price': 'PKR 2,500',
-      'location': 'Faisalabad',
-      'category': 'Interior Cleaning',
-      'image': 'assets/images/car.png',
-    },
-    {
-      'title': 'Car Wash Service',
-      'price': 'PKR 1,500',
-      'location': 'Lahore',
-      'category': 'Services',
-      'image': 'assets/images/car.png',
-    },
-  ];
-
-  List<Map<String, String>> get filteredResults {
-    if (_selectedCategory == 'All') {
-      return _searchResults;
-    }
-    return _searchResults
-        .where((item) => item['category'] == _selectedCategory)
-        .toList();
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return AppScaffold(
-      appBar: AppBar(
-        title: const Text('Search'),
-      ),
-      body: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              children: [
-                TextField(
-                  controller: _searchController,
-                  decoration: const InputDecoration(
-                    hintText: 'Search car care services...',
-                    prefixIcon: Icon(Icons.search),
-                  ),
-                  onChanged: (value) {
-                    setState(() {});
-                  },
-                ),
-                const SizedBox(height: 16),
-                SizedBox(
-                  height: 40,
-                  child: ListView.builder(
-                    scrollDirection: Axis.horizontal,
-                    itemCount: _categories.length,
-                    itemBuilder: (context, index) {
-                      final category = _categories[index];
-                      final isSelected = category == _selectedCategory;
+      appBar: AppBar(title: const Text('Search')),
+      body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+        stream: _repository.activeServices(),
+        builder: (context, snapshot) {
+          final services =
+              snapshot.data?.docs
+                  .map((doc) => {'id': doc.id, ...doc.data()})
+                  .toList() ??
+              [];
+          final categories = _categoriesFrom(services);
+          final query = _searchController.text.trim().toLowerCase();
+          final results =
+              services.where((item) {
+                final name = item['name']?.toString().toLowerCase() ?? '';
+                final garage =
+                    (item['businessName'] ?? item['providerName'])
+                        ?.toString()
+                        .toLowerCase() ??
+                    '';
+                final category = item['category']?.toString() ?? '';
+                final matchesQuery =
+                    query.isEmpty ||
+                    name.contains(query) ||
+                    garage.contains(query) ||
+                    category.toLowerCase().contains(query);
+                final matchesCategory =
+                    _selectedCategory == 'All' || category == _selectedCategory;
+                return matchesQuery && matchesCategory;
+              }).toList();
 
-                      return Padding(
-                        padding: const EdgeInsets.only(right: 12),
-                        child: ChoiceChip(
-                          label: Text(category),
-                          selected: isSelected,
-                          onSelected: (_) {
-                            setState(() {
-                              _selectedCategory = category;
-                            });
-                          },
-                        ),
-                      );
-                    },
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Expanded(
-            child: ListView.builder(
-              itemCount: filteredResults.length,
-              itemBuilder: (context, index) {
-                final item = filteredResults[index];
-                return Card(
-                  margin: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 8,
-                  ),
-                  child: ListTile(
-                    contentPadding: const EdgeInsets.all(16),
-                    leading: ClipRRect(
-                      borderRadius: BorderRadius.circular(8),
-                      child: Image.asset(
-                        item['image']!,
-                        width: 60,
-                        height: 60,
-                        fit: BoxFit.cover,
-                        errorBuilder:
-                            (_, __, ___) => Container(
-                              width: 60,
-                              height: 60,
-                              color: AppTheme.inputFill,
-                              child: const Icon(Icons.image_not_supported),
+          return Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  children: [
+                    TextField(
+                      controller: _searchController,
+                      decoration: const InputDecoration(
+                        hintText: 'Search services or garages',
+                        prefixIcon: Icon(Icons.search),
+                      ),
+                      onChanged: (_) => setState(() {}),
+                    ),
+                    const SizedBox(height: 16),
+                    SizedBox(
+                      height: 40,
+                      child: ListView.builder(
+                        scrollDirection: Axis.horizontal,
+                        itemCount: categories.length,
+                        itemBuilder: (context, index) {
+                          final category = categories[index];
+                          return Padding(
+                            padding: const EdgeInsets.only(right: 12),
+                            child: ChoiceChip(
+                              label: Text(category),
+                              selected: category == _selectedCategory,
+                              onSelected:
+                                  (_) => setState(
+                                    () => _selectedCategory = category,
+                                  ),
                             ),
+                          );
+                        },
                       ),
                     ),
-                    title: Text(
-                      item['title']!,
-                      style: const TextStyle(
-                        color: AppTheme.textPrimary,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 16,
-                      ),
-                    ),
-                    subtitle: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const SizedBox(height: 4),
-                        Text(
-                          item['price']!,
-                          style: const TextStyle(
+                  ],
+                ),
+              ),
+              Expanded(
+                child:
+                    snapshot.connectionState == ConnectionState.waiting
+                        ? const Center(
+                          child: CircularProgressIndicator(
                             color: AppTheme.secondary,
-                            fontWeight: FontWeight.w600,
                           ),
+                        )
+                        : results.isEmpty
+                        ? const _EmptyState()
+                        : ListView.builder(
+                          itemCount: results.length,
+                          itemBuilder:
+                              (context, index) =>
+                                  _ResultTile(service: results[index]),
                         ),
-                        Text(
-                          item['location']!,
-                          style: const TextStyle(color: AppTheme.textSecondary),
-                        ),
-                      ],
-                    ),
-                    trailing: Chip(
-                      label: Text(item['category']!),
-                    ),
-                    onTap: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('Viewing ${item['title']}'),
-                        ),
-                      );
-                    },
-                  ),
-                );
-              },
-            ),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  List<String> _categoriesFrom(List<Map<String, dynamic>> services) {
+    final categories =
+        services
+            .map((item) => item['category']?.toString().trim() ?? '')
+            .where((value) => value.isNotEmpty)
+            .toSet()
+            .toList()
+          ..sort();
+    return ['All', ...categories];
+  }
+}
+
+class _ResultTile extends StatelessWidget {
+  const _ResultTile({required this.service});
+
+  final Map<String, dynamic> service;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: ListTile(
+        contentPadding: const EdgeInsets.all(16),
+        leading: CircleAvatar(
+          backgroundColor: AppTheme.inputFill,
+          child: Icon(Icons.build, color: AppTheme.primary),
+        ),
+        title: Text(
+          service['name']?.toString() ?? 'Service',
+          style: const TextStyle(
+            color: AppTheme.textPrimary,
+            fontWeight: FontWeight.w600,
           ),
-        ],
+        ),
+        subtitle: Text(
+          [
+            service['businessName'] ?? service['providerName'],
+            service['category'],
+            service['city'],
+          ].whereType<Object>().map((value) => value.toString()).join(' • '),
+          style: const TextStyle(color: AppTheme.textSecondary),
+        ),
+        trailing: Text(
+          'Rs. ${_priceText(service['price'])}',
+          style: const TextStyle(
+            color: AppTheme.primary,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        onTap:
+            () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const BookingPage()),
+            ),
       ),
     );
   }
 }
 
+class _EmptyState extends StatelessWidget {
+  const _EmptyState();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Center(
+      child: Text(
+        'No matching services found.',
+        style: TextStyle(color: AppTheme.textSecondary),
+      ),
+    );
+  }
+}
+
+String _priceText(Object? value) {
+  if (value is num) {
+    return value.toStringAsFixed(value.truncateToDouble() == value ? 0 : 2);
+  }
+  return value?.toString() ?? '0';
+}
