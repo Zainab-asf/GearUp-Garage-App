@@ -17,6 +17,7 @@ class _ServiceProviderDashboardState extends State<ServiceProviderDashboard>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
   String? currentProviderId;
+  Map<String, dynamic>? currentProvider;
   String selectedStatus = 'All';
 
   final List<String> statusFilters = [
@@ -33,7 +34,6 @@ class _ServiceProviderDashboardState extends State<ServiceProviderDashboard>
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
     _getCurrentProviderId();
-    _listenForNewBookings();
   }
 
   void _listenForNewBookings() {
@@ -71,47 +71,35 @@ class _ServiceProviderDashboardState extends State<ServiceProviderDashboard>
     final currentUser = FirebaseAuth.instance.currentUser;
     if (currentUser != null) {
       try {
-        print(
-          'Looking for provider with email: ${currentUser.email}',
-        ); // Debug log
-
-        final querySnapshot =
+        final providerDoc =
             await FirebaseFirestore.instance
                 .collection('service_providers')
-                .where('email', isEqualTo: currentUser.email)
-                .limit(1)
+                .doc(currentUser.uid)
                 .get();
 
-        if (querySnapshot.docs.isNotEmpty) {
-          final providerId = querySnapshot.docs.first.id;
-
+        if (providerDoc.exists) {
           setState(() {
-            currentProviderId = providerId;
+            currentProviderId = providerDoc.id;
+            currentProvider = providerDoc.data();
           });
-        } else {
-          // Create a default provider for testing
-          try {
-            final docRef = await FirebaseFirestore.instance
-                .collection('service_providers')
-                .add({
-                  'businessName': 'Test Service Provider',
-                  'ownerName': 'Test Owner',
-                  'email': currentUser.email,
-                  'phone': '123-456-7890',
-                  'address': 'Test Address',
-                  'isVerified': true,
-                  'createdAt': FieldValue.serverTimestamp(),
-                });
-
-            setState(() {
-              currentProviderId = docRef.id;
-            });
-          } catch (e) {
-            // Handle error silently or show user-friendly message
-          }
+          _listenForNewBookings();
+        } else if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Service provider profile was not found.'),
+              backgroundColor: AppTheme.error,
+            ),
+          );
         }
       } catch (e) {
-        // Handle error silently or show user-friendly message
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Error loading provider profile: $e'),
+              backgroundColor: AppTheme.error,
+            ),
+          );
+        }
       }
     }
   }
@@ -218,10 +206,12 @@ class _ServiceProviderDashboardState extends State<ServiceProviderDashboard>
         Expanded(
           child: StreamBuilder<QuerySnapshot>(
             stream:
-                FirebaseFirestore.instance
-                    .collection('services')
-                    .where('isActive', isEqualTo: true)
-                    .snapshots(),
+                currentProviderId == null
+                    ? const Stream.empty()
+                    : FirebaseFirestore.instance
+                        .collection('services')
+                        .where('providerId', isEqualTo: currentProviderId)
+                        .snapshots(),
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
                 return const Center(
@@ -507,6 +497,15 @@ class _ServiceProviderDashboardState extends State<ServiceProviderDashboard>
                               : categoryController.text,
                       'isActive': true,
                       'providerId': currentProviderId,
+                      'providerName':
+                          currentProvider?['businessName'] ??
+                          'Service Provider',
+                      'businessName':
+                          currentProvider?['businessName'] ??
+                          'Service Provider',
+                      'phone': currentProvider?['phone'] ?? '',
+                      'address': currentProvider?['address'] ?? '',
+                      'city': currentProvider?['city'] ?? '',
                       'createdAt': FieldValue.serverTimestamp(),
                       'createdBy': 'provider',
                     };

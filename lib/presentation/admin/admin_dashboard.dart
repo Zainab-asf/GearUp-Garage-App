@@ -42,11 +42,6 @@ class _AdminDashboardState extends State<AdminDashboard>
             'approvedAt': FieldValue.serverTimestamp(),
           });
 
-      if (isApproved) {
-        // When approved, create default services for the provider
-        await _createDefaultServices(docId);
-      }
-
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -64,49 +59,6 @@ class _AdminDashboardState extends State<AdminDashboard>
         context,
       ).showSnackBar(const SnackBar(content: Text('Failed to update status')));
     }
-  }
-
-  // Create default services when a provider is approved
-  Future<void> _createDefaultServices(String providerId) async {
-    final defaultServices = [
-      {
-        'name': 'Oil Change',
-        'description': 'Full synthetic oil change with filter replacement',
-        'price': 49.99,
-        'duration': '45 mins',
-        'category': 'Maintenance',
-        'isActive': true,
-        'providerId': providerId,
-        'createdAt': FieldValue.serverTimestamp(),
-      },
-      {
-        'name': 'Brake Inspection',
-        'description': 'Complete check of brake pads, rotors, and fluids',
-        'price': 75.00,
-        'duration': '60 mins',
-        'category': 'Safety',
-        'isActive': true,
-        'providerId': providerId,
-        'createdAt': FieldValue.serverTimestamp(),
-      },
-      {
-        'name': 'Tire Rotation',
-        'description': 'Ensure even tire wear and extend tire life',
-        'price': 29.99,
-        'duration': '30 mins',
-        'category': 'Maintenance',
-        'isActive': true,
-        'providerId': providerId,
-        'createdAt': FieldValue.serverTimestamp(),
-      },
-    ];
-
-    final batch = FirebaseFirestore.instance.batch();
-    for (final service in defaultServices) {
-      final docRef = FirebaseFirestore.instance.collection('services').doc();
-      batch.set(docRef, service);
-    }
-    await batch.commit();
   }
 
   @override
