@@ -1,5 +1,7 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:gearup_garage/core/theme/app_theme.dart';
+import 'package:gearup_garage/data/repositories/garage_repository.dart';
 
 class OffersPage extends StatefulWidget {
   const OffersPage({super.key});
@@ -10,104 +12,8 @@ class OffersPage extends StatefulWidget {
 
 class _OffersPageState extends State<OffersPage>
     with SingleTickerProviderStateMixin {
+  final GarageRepository _repository = GarageRepository();
   late TabController _tabController;
-
-  final List<Map<String, dynamic>> _offers = [
-    {
-      'id': '1',
-      'title': '50% OFF Oil Change',
-      'description': 'Get 50% discount on oil change service for all vehicles',
-      'originalPrice': '4,000',
-      'discountedPrice': '2,000',
-      'discount': '50%',
-      'validUntil': '2024-02-15',
-      'garage': 'GearUp Auto Service',
-      'location': 'Faisalabad',
-      'category': 'service',
-      'terms':
-          'Valid for synthetic oil only. Cannot be combined with other offers.',
-      'isActive': true,
-      'image': 'assets/images/oil_change_offer.jpg',
-    },
-    {
-      'id': '2',
-      'title': 'Free Car Wash with Service',
-      'description':
-          'Get complimentary car wash with any service above Rs. 5,000',
-      'originalPrice': '1,500',
-      'discountedPrice': 'FREE',
-      'discount': '100%',
-      'validUntil': '2024-02-20',
-      'garage': 'Elite Car Care',
-      'location': 'Lahore',
-      'category': 'service',
-      'terms': 'Minimum service amount Rs. 5,000 required. Exterior wash only.',
-      'isActive': true,
-      'image': 'assets/images/car_wash_offer.jpg',
-    },
-    {
-      'id': '3',
-      'title': 'Buy 2 Get 1 Free Brake Pads',
-      'description': 'Purchase 2 brake pads and get 1 absolutely free',
-      'originalPrice': '25,500',
-      'discountedPrice': '17,000',
-      'discount': '33%',
-      'validUntil': '2024-02-10',
-      'garage': 'AutoParts Hub',
-      'location': 'Karachi',
-      'category': 'parts',
-      'terms':
-          'Valid for same model brake pads only. Installation charges separate.',
-      'isActive': true,
-      'image': 'assets/images/brake_pads_offer.jpg',
-    },
-    {
-      'id': '4',
-      'title': '25% OFF All Tires',
-      'description': 'Get 25% discount on all tire brands and sizes',
-      'originalPrice': '40,000',
-      'discountedPrice': '30,000',
-      'discount': '25%',
-      'validUntil': '2024-01-31',
-      'garage': 'Tire World',
-      'location': 'Islamabad',
-      'category': 'parts',
-      'terms':
-          'Valid for set of 4 tires. Balancing and alignment charges extra.',
-      'isActive': false,
-      'image': 'assets/images/tire_offer.jpg',
-    },
-    {
-      'id': '5',
-      'title': 'Engine Checkup for Rs. 999',
-      'description': 'Complete engine diagnostic and checkup at special price',
-      'originalPrice': '2,500',
-      'discountedPrice': '999',
-      'discount': '60%',
-      'validUntil': '2024-02-25',
-      'garage': 'Master Mechanic',
-      'location': 'Rawalpindi',
-      'category': 'service',
-      'terms': 'Diagnostic only. Repair charges separate as per requirement.',
-      'isActive': true,
-      'image': 'assets/images/engine_checkup_offer.jpg',
-    },
-    {
-      'id': '6',
-      'title': 'New Customer Special - 30% OFF',
-      'description': 'First-time customers get 30% off on any service',
-      'originalPrice': 'Variable',
-      'discountedPrice': '30% OFF',
-      'discount': '30%',
-      'validUntil': '2024-03-01',
-      'garage': 'All Partner Garages',
-      'location': 'All Cities',
-      'category': 'service',
-      'terms': 'Valid for new customers only. ID verification required.',
-      'isActive': true,
-      'image': 'assets/images/new_customer_offer.jpg',
-    },
-  ];
 
   @override
   void initState() {
@@ -121,424 +27,115 @@ class _OffersPageState extends State<OffersPage>
     super.dispose();
   }
 
-  List<Map<String, dynamic>> _getFilteredOffers(String filter) {
-    switch (filter) {
-      case 'active':
-        return _offers.where((offer) => offer['isActive']).toList();
-      case 'service':
-        return _offers
-            .where(
-              (offer) => offer['category'] == 'service' && offer['isActive'],
-            )
-            .toList();
-      case 'parts':
-        return _offers
-            .where((offer) => offer['category'] == 'parts' && offer['isActive'])
-            .toList();
-      default:
-        return _offers.where((offer) => offer['isActive']).toList();
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text(
-          'Special Offers',
-          style: TextStyle(color: AppTheme.textPrimary),
-        ),
-        backgroundColor: AppTheme.surface,
-        iconTheme: const IconThemeData(color: AppTheme.textPrimary),
-        elevation: 0,
+        title: const Text('Special Offers'),
         bottom: TabBar(
           controller: _tabController,
           indicatorColor: AppTheme.accent,
-          labelColor: AppTheme.textPrimary,
-          unselectedLabelColor: AppTheme.textSecondary,
           tabs: const [
-            Tab(text: 'All Offers', icon: Icon(Icons.local_offer, size: 20)),
+            Tab(text: 'All', icon: Icon(Icons.local_offer, size: 20)),
             Tab(text: 'Services', icon: Icon(Icons.build, size: 20)),
             Tab(text: 'Parts', icon: Icon(Icons.settings, size: 20)),
           ],
         ),
       ),
-      body: Column(
-        children: [
-          // Header Banner
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [AppTheme.primary, AppTheme.secondary],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-            ),
-            child: Column(
-              children: [
-                const Icon(
-                  Icons.local_offer,
-                  size: 40,
-                  color: AppTheme.buttonText,
-                ),
-                const SizedBox(height: 8),
-                const Text(
-                  'Limited Time Offers!',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: AppTheme.buttonText,
+      body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+        stream: _repository.activeOffers(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(
+              child: CircularProgressIndicator(color: AppTheme.secondary),
+            );
+          }
+
+          if (snapshot.hasError) {
+            return const _EmptyState(
+              icon: Icons.cloud_off,
+              title: 'Could not load offers',
+              message: 'Check your connection and try again.',
+            );
+          }
+
+          final offers =
+              snapshot.data?.docs
+                  .map((doc) => {'id': doc.id, ...doc.data()})
+                  .where(_isCurrentOffer)
+                  .toList() ??
+              [];
+
+          return Column(
+            children: [
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(16),
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [AppTheme.primary, AppTheme.secondary],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
                   ),
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  'Save up to 60% on services and parts',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: AppTheme.buttonText.withOpacity(0.9),
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          // Content
-          Expanded(
-            child: TabBarView(
-              controller: _tabController,
-              children: [
-                _buildOffersList(_getFilteredOffers('active')),
-                _buildOffersList(_getFilteredOffers('service')),
-                _buildOffersList(_getFilteredOffers('parts')),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildOffersList(List<Map<String, dynamic>> offers) {
-    if (offers.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              Icons.local_offer_outlined,
-              size: 64,
-              color: AppTheme.textSecondary,
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'No offers available',
-              style: TextStyle(
-                fontSize: 18,
-                color: AppTheme.textSecondary,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      itemCount: offers.length,
-      itemBuilder: (context, index) {
-        final offer = offers[index];
-        return _buildOfferCard(offer);
-      },
-    );
-  }
-
-  Widget _buildOfferCard(Map<String, dynamic> offer) {
-    final isExpired = DateTime.parse(
-      offer['validUntil'],
-    ).isBefore(DateTime.now());
-
-    return Card(
-      margin: const EdgeInsets.only(bottom: 16),
-      elevation: 6,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Container(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(16),
-          gradient: LinearGradient(
-            colors: [AppTheme.card, AppTheme.surface],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Offer Header
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color:
-                    offer['category'] == 'service'
-                        ? AppTheme.primary
-                        : AppTheme.secondary,
-                borderRadius: const BorderRadius.vertical(
-                  top: Radius.circular(16),
-                ),
-              ),
-              child: Row(
-                children: [
-                  Container(
-                    width: 60,
-                    height: 60,
-                    decoration: BoxDecoration(
-                      color: AppTheme.buttonText.withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Icon(
-                      offer['category'] == 'service'
-                          ? Icons.build
-                          : Icons.settings,
-                      size: 30,
+                child: const Column(
+                  children: [
+                    Icon(
+                      Icons.local_offer,
+                      size: 40,
                       color: AppTheme.buttonText,
                     ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          offer['title'],
-                          style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: AppTheme.buttonText,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          offer['garage'],
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: AppTheme.buttonText.withOpacity(0.9),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 6,
-                    ),
-                    decoration: BoxDecoration(
-                      color: AppTheme.error,
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Text(
-                      '${offer['discount']} OFF',
-                      style: const TextStyle(
-                        color: AppTheme.buttonText,
-                        fontSize: 12,
+                    SizedBox(height: 8),
+                    Text(
+                      'Live marketplace offers',
+                      style: TextStyle(
+                        fontSize: 20,
                         fontWeight: FontWeight.bold,
+                        color: AppTheme.buttonText,
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-
-            // Offer Content
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    offer['description'],
-                    style: const TextStyle(
-                      fontSize: 16,
-                      color: AppTheme.textPrimary,
+              Expanded(
+                child: TabBarView(
+                  controller: _tabController,
+                  children: [
+                    _OffersList(
+                      offers: offers,
+                      onClaim: _claimOffer,
+                      onDetails: _showOfferDetails,
                     ),
-                  ),
-
-                  const SizedBox(height: 16),
-
-                  // Price Section
-                  Row(
-                    children: [
-                      if (offer['originalPrice'] != 'Variable') ...[
-                        Text(
-                          'Rs. ${offer['originalPrice']}',
-                          style: const TextStyle(
-                            fontSize: 16,
-                            decoration: TextDecoration.lineThrough,
-                            color: AppTheme.textSecondary,
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                      ],
-                      Text(
-                        offer['discountedPrice'] == 'FREE'
-                            ? 'FREE'
-                            : offer['discountedPrice'].contains('%')
-                            ? offer['discountedPrice']
-                            : 'Rs. ${offer['discountedPrice']}',
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                          color:
-                              offer['discountedPrice'] == 'FREE'
-                                  ? AppTheme.success
-                                  : AppTheme.primary,
-                        ),
-                      ),
-                    ],
-                  ),
-
-                  const SizedBox(height: 16),
-
-                  // Location and Validity
-                  Row(
-                    children: [
-                      Icon(
-                        Icons.location_on,
-                        size: 16,
-                        color: AppTheme.textSecondary,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        offer['location'],
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: AppTheme.textSecondary,
-                        ),
-                      ),
-                      const Spacer(),
-                      Icon(
-                        Icons.schedule,
-                        size: 16,
-                        color: AppTheme.textSecondary,
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        'Valid until ${offer['validUntil']}',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color:
-                              isExpired
-                                  ? AppTheme.error
-                                  : AppTheme.textSecondary,
-                          fontWeight:
-                              isExpired ? FontWeight.bold : FontWeight.normal,
-                        ),
-                      ),
-                    ],
-                  ),
-
-                  const SizedBox(height: 16),
-
-                  // Terms
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: AppTheme.inputFill,
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: AppTheme.inputBorder),
+                    _OffersList(
+                      offers:
+                          offers
+                              .where((offer) => offer['category'] == 'service')
+                              .toList(),
+                      onClaim: _claimOffer,
+                      onDetails: _showOfferDetails,
                     ),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Icon(
-                          Icons.info_outline,
-                          size: 16,
-                          color: AppTheme.textSecondary,
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            offer['terms'],
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: AppTheme.textSecondary,
-                            ),
-                          ),
-                        ),
-                      ],
+                    _OffersList(
+                      offers:
+                          offers
+                              .where((offer) => offer['category'] == 'parts')
+                              .toList(),
+                      onClaim: _claimOffer,
+                      onDetails: _showOfferDetails,
                     ),
-                  ),
-
-                  const SizedBox(height: 16),
-
-                  // Action Buttons
-                  Row(
-                    children: [
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          onPressed: () {
-                            _showOfferDetails(offer);
-                          },
-                          icon: const Icon(Icons.info, size: 16),
-                          label: const Text(
-                            'Details',
-                            style: TextStyle(fontSize: 14),
-                          ),
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: AppTheme.secondary,
-                            side: const BorderSide(color: AppTheme.secondary),
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: ElevatedButton.icon(
-                          onPressed:
-                              isExpired
-                                  ? null
-                                  : () {
-                                    _claimOffer(offer);
-                                  },
-                          icon: Icon(
-                            isExpired ? Icons.schedule : Icons.local_offer,
-                            size: 16,
-                            color: AppTheme.buttonText,
-                          ),
-                          label: Text(
-                            isExpired ? 'Expired' : 'Claim Offer',
-                            style: const TextStyle(
-                              fontSize: 14,
-                              color: AppTheme.buttonText,
-                            ),
-                          ),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor:
-                                isExpired
-                                    ? AppTheme.inputBorder
-                                    : AppTheme.primary,
-                            foregroundColor: AppTheme.buttonText,
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-          ],
-        ),
+            ],
+          );
+        },
       ),
     );
+  }
+
+  bool _isCurrentOffer(Map<String, dynamic> offer) {
+    final validUntil = _dateFrom(offer['validUntil']);
+    return validUntil == null ||
+        validUntil.isAfter(DateTime.now().subtract(const Duration(days: 1)));
   }
 
   void _showOfferDetails(Map<String, dynamic> offer) {
@@ -547,265 +144,383 @@ class _OffersPageState extends State<OffersPage>
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder:
-          (context) => Container(
-            height: MediaQuery.of(context).size.height * 0.7,
-            decoration: const BoxDecoration(
-              color: AppTheme.surface,
-              borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Handle bar
-                  Center(
-                    child: Container(
-                      width: 40,
-                      height: 4,
-                      decoration: BoxDecoration(
-                        color: AppTheme.inputBorder,
-                        borderRadius: BorderRadius.circular(2),
-                      ),
+          (context) => DraggableScrollableSheet(
+            initialChildSize: 0.72,
+            minChildSize: 0.45,
+            maxChildSize: 0.9,
+            builder:
+                (context, controller) => Container(
+                  decoration: const BoxDecoration(
+                    color: AppTheme.surface,
+                    borderRadius: BorderRadius.vertical(
+                      top: Radius.circular(20),
                     ),
                   ),
-                  const SizedBox(height: 20),
-
-                  // Offer title
-                  Text(
-                    offer['title'],
-                    style: const TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      color: AppTheme.textPrimary,
-                    ),
-                  ),
-
-                  const SizedBox(height: 16),
-
-                  // Offer details
-                  Text(
-                    'Description:',
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: AppTheme.textPrimary,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    offer['description'],
-                    style: TextStyle(
-                      fontSize: 16,
-                      color: AppTheme.textSecondary,
-                    ),
-                  ),
-
-                  const SizedBox(height: 20),
-
-                  Text(
-                    'Terms & Conditions:',
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: AppTheme.textPrimary,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    offer['terms'],
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: AppTheme.textSecondary,
-                    ),
-                  ),
-
-                  const SizedBox(height: 20),
-
-                  // Garage info
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: AppTheme.inputFill,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Available at:',
-                          style: const TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.bold,
-                            color: AppTheme.textPrimary,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          offer['garage'],
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w500,
-                            color: AppTheme.primary,
-                          ),
-                        ),
-                        Text(
-                          offer['location'],
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: AppTheme.textSecondary,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  const Spacer(),
-
-                  // Action button
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: () {
-                        Navigator.pop(context);
-                        _claimOffer(offer);
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppTheme.primary,
-                        foregroundColor: AppTheme.buttonText,
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      child: const Text(
-                        'Claim This Offer',
-                        style: TextStyle(
-                          fontSize: 18,
+                  child: ListView(
+                    controller: controller,
+                    padding: const EdgeInsets.all(20),
+                    children: [
+                      Text(
+                        offer['title']?.toString() ?? 'Offer',
+                        style: const TextStyle(
+                          fontSize: 24,
                           fontWeight: FontWeight.bold,
-                          color: AppTheme.buttonText,
+                          color: AppTheme.textPrimary,
                         ),
                       ),
-                    ),
+                      const SizedBox(height: 12),
+                      Text(
+                        offer['description']?.toString() ??
+                            'No description provided.',
+                        style: const TextStyle(
+                          color: AppTheme.textSecondary,
+                          fontSize: 16,
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      _InfoRow(
+                        icon: Icons.garage,
+                        text:
+                            offer['garage']?.toString() ??
+                            offer['businessName']?.toString() ??
+                            'Partner garage',
+                      ),
+                      _InfoRow(
+                        icon: Icons.location_on,
+                        text: offer['location']?.toString() ?? 'All areas',
+                      ),
+                      _InfoRow(
+                        icon: Icons.schedule,
+                        text: 'Valid until ${_dateText(offer['validUntil'])}',
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        offer['terms']?.toString() ??
+                            'No additional terms provided.',
+                        style: const TextStyle(color: AppTheme.textSecondary),
+                      ),
+                      const SizedBox(height: 24),
+                      ElevatedButton.icon(
+                        onPressed: () {
+                          Navigator.pop(context);
+                          _claimOffer(offer);
+                        },
+                        icon: const Icon(Icons.local_offer),
+                        label: const Text('Claim this offer'),
+                      ),
+                    ],
                   ),
-                ],
-              ),
-            ),
+                ),
           ),
     );
   }
 
-  void _claimOffer(Map<String, dynamic> offer) {
-    showDialog(
+  Future<void> _claimOffer(Map<String, dynamic> offer) async {
+    final confirm = await showDialog<bool>(
       context: context,
       builder:
           (context) => AlertDialog(
-            backgroundColor: AppTheme.surface,
-            title: const Text(
-              'Claim Offer',
-              style: TextStyle(color: AppTheme.textPrimary),
-            ),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('You are about to claim: ${offer['title']}'),
-                const SizedBox(height: 16),
-                const Text(
-                  'This will generate a unique coupon code that you can use at the garage.',
-                  style: TextStyle(fontSize: 14, color: AppTheme.textSecondary),
-                ),
-              ],
+            title: const Text('Claim offer'),
+            content: Text(
+              'Generate a coupon for ${offer['title'] ?? 'this offer'}?',
             ),
             actions: [
               TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text(
-                  'Cancel',
-                  style: TextStyle(color: AppTheme.textSecondary),
-                ),
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Cancel'),
               ),
               ElevatedButton(
-                onPressed: () {
-                  Navigator.pop(context);
-                  _generateCoupon(offer);
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppTheme.primary,
-                  foregroundColor: AppTheme.buttonText,
-                ),
-                child: const Text('Claim Now'),
+                onPressed: () => Navigator.pop(context, true),
+                child: const Text('Claim'),
               ),
             ],
           ),
     );
-  }
 
-  void _generateCoupon(Map<String, dynamic> offer) {
-    final couponCode =
-        'AUTO${DateTime.now().millisecondsSinceEpoch.toString().substring(8)}';
+    if (confirm != true) return;
 
-    showDialog(
+    final couponCode = await _repository.claimOffer(
+      offerId: offer['id'].toString(),
+      offer: offer,
+    );
+
+    if (!mounted) return;
+    showDialog<void>(
       context: context,
       builder:
           (context) => AlertDialog(
-            backgroundColor: AppTheme.surface,
-            title: const Text(
-              'Offer Claimed!',
-              style: TextStyle(color: AppTheme.textPrimary),
-            ),
+            title: const Text('Offer claimed'),
             content: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 const Icon(
                   Icons.check_circle,
-                  size: 64,
+                  size: 56,
                   color: AppTheme.success,
                 ),
                 const SizedBox(height: 16),
-                const Text(
-                  'Your coupon code is:',
-                  style: TextStyle(color: AppTheme.textPrimary),
-                ),
+                const Text('Your coupon code is:'),
                 const SizedBox(height: 8),
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: AppTheme.inputFill,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: AppTheme.inputBorder),
-                  ),
-                  child: Text(
-                    couponCode,
-                    style: const TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: AppTheme.primary,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  'Show this code at ${offer['garage']} to avail the discount.',
+                SelectableText(
+                  couponCode,
                   style: const TextStyle(
-                    fontSize: 14,
-                    color: AppTheme.textSecondary,
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                    color: AppTheme.primary,
                   ),
-                  textAlign: TextAlign.center,
                 ),
               ],
             ),
             actions: [
               ElevatedButton(
                 onPressed: () => Navigator.pop(context),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppTheme.primary,
-                  foregroundColor: AppTheme.buttonText,
-                ),
-                child: const Text('Got it!'),
+                child: const Text('Done'),
               ),
             ],
           ),
     );
   }
+}
+
+class _OffersList extends StatelessWidget {
+  const _OffersList({
+    required this.offers,
+    required this.onClaim,
+    required this.onDetails,
+  });
+
+  final List<Map<String, dynamic>> offers;
+  final ValueChanged<Map<String, dynamic>> onClaim;
+  final ValueChanged<Map<String, dynamic>> onDetails;
+
+  @override
+  Widget build(BuildContext context) {
+    if (offers.isEmpty) {
+      return const _EmptyState(
+        icon: Icons.local_offer_outlined,
+        title: 'No offers available',
+        message: 'Active offers created in Firestore will appear here.',
+      );
+    }
+
+    return ListView.builder(
+      padding: const EdgeInsets.all(16),
+      itemCount: offers.length,
+      itemBuilder:
+          (context, index) => _OfferCard(
+            offer: offers[index],
+            onClaim: () => onClaim(offers[index]),
+            onDetails: () => onDetails(offers[index]),
+          ),
+    );
+  }
+}
+
+class _OfferCard extends StatelessWidget {
+  const _OfferCard({
+    required this.offer,
+    required this.onClaim,
+    required this.onDetails,
+  });
+
+  final Map<String, dynamic> offer;
+  final VoidCallback onClaim;
+  final VoidCallback onDetails;
+
+  @override
+  Widget build(BuildContext context) {
+    final category = offer['category']?.toString() ?? 'service';
+    return Card(
+      margin: const EdgeInsets.only(bottom: 16),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(16),
+            color: category == 'parts' ? AppTheme.secondary : AppTheme.primary,
+            child: Row(
+              children: [
+                Icon(
+                  category == 'parts' ? Icons.settings : Icons.build,
+                  color: AppTheme.buttonText,
+                  size: 34,
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        offer['title']?.toString() ?? 'Offer',
+                        style: const TextStyle(
+                          color: AppTheme.buttonText,
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      Text(
+                        offer['garage']?.toString() ??
+                            offer['businessName']?.toString() ??
+                            'Partner garage',
+                        style: TextStyle(
+                          color: AppTheme.buttonText.withOpacity(0.9),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Chip(
+                  label: Text('${offer['discount'] ?? 'Deal'}'),
+                  backgroundColor: AppTheme.error,
+                  labelStyle: const TextStyle(color: AppTheme.buttonText),
+                ),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  offer['description']?.toString() ??
+                      'No description provided.',
+                  style: const TextStyle(color: AppTheme.textPrimary),
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Text(
+                      _offerPrice(offer),
+                      style: const TextStyle(
+                        color: AppTheme.primary,
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const Spacer(),
+                    Text(
+                      _dateText(offer['validUntil']),
+                      style: const TextStyle(color: AppTheme.textSecondary),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed: onDetails,
+                        icon: const Icon(Icons.info, size: 16),
+                        label: const Text('Details'),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        onPressed: onClaim,
+                        icon: const Icon(Icons.local_offer, size: 16),
+                        label: const Text('Claim'),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _InfoRow extends StatelessWidget {
+  const _InfoRow({required this.icon, required this.text});
+
+  final IconData icon;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        children: [
+          Icon(icon, size: 18, color: AppTheme.textSecondary),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              text,
+              style: const TextStyle(color: AppTheme.textSecondary),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _EmptyState extends StatelessWidget {
+  const _EmptyState({
+    required this.icon,
+    required this.title,
+    required this.message,
+  });
+
+  final IconData icon;
+  final String title;
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, size: 64, color: AppTheme.textSecondary),
+            const SizedBox(height: 16),
+            Text(
+              title,
+              style: const TextStyle(
+                color: AppTheme.textPrimary,
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              message,
+              style: const TextStyle(color: AppTheme.textSecondary),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+String _offerPrice(Map<String, dynamic> offer) {
+  final discounted = offer['discountedPrice']?.toString();
+  if (discounted != null && discounted.trim().isNotEmpty) {
+    return discounted.toUpperCase() == 'FREE' ? 'FREE' : 'Rs. $discounted';
+  }
+  final percent = offer['discount']?.toString();
+  return percent == null ? 'Special offer' : '$percent OFF';
+}
+
+DateTime? _dateFrom(Object? value) {
+  if (value is Timestamp) return value.toDate();
+  if (value is DateTime) return value;
+  if (value is String) return DateTime.tryParse(value);
+  return null;
+}
+
+String _dateText(Object? value) {
+  final date = _dateFrom(value);
+  if (date == null) return 'No expiry';
+  return '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
 }
