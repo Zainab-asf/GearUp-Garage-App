@@ -1,5 +1,8 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:gearup_garage/core/theme/app_theme.dart';
+import 'package:gearup_garage/data/repositories/garage_repository.dart';
+import 'package:gearup_garage/presentation/customer/customer_bookings.dart';
 
 class ServicesPage extends StatefulWidget {
   const ServicesPage({super.key});
@@ -9,799 +12,433 @@ class ServicesPage extends StatefulWidget {
 }
 
 class _ServicesPageState extends State<ServicesPage> {
-  String _selectedCity = 'Faisalabad';
-  String _selectedServiceType = 'All Services';
+  final GarageRepository _repository = GarageRepository();
+  String _selectedCity = 'All';
+  String _selectedCategory = 'All';
 
-  final List<String> _cities = [
-    'Faisalabad',
-    'Lahore',
-    'Karachi',
-    'Islamabad',
-    'Rawalpindi',
-    'Abbottabad',
-  ];
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Nearby Services')),
+      body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+        stream: _repository.activeServices(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(
+              child: CircularProgressIndicator(color: AppTheme.secondary),
+            );
+          }
 
-  final List<String> _serviceTypes = [
-    'All Services',
-    'Full Service Garage',
-    'Quick Service',
-    'Premium Service',
-    'Emergency Service',
-  ];
+          if (snapshot.hasError) {
+            return _EmptyState(
+              icon: Icons.cloud_off,
+              title: 'Could not load services',
+              message: 'Check your connection and try again.',
+            );
+          }
 
-  // Sample garage/service locations
-  final List<Map<String, dynamic>> _serviceLocations = [
-    {
-      'id': 'garage1',
-      'name': 'GearUp Auto Service',
-      'type': 'Full Service Garage',
-      'city': 'Faisalabad',
-      'address': 'Main Boulevard, Kohinoor City',
-      'distance': '2.5 km',
-      'rating': 4.5,
-      'services': ['Oil Change', 'Brake Repair', 'Engine Service'],
-      'phone': '+92 300 1234567',
-    },
-    {
-      'id': 'garage2',
-      'name': 'Quick Fix Motors',
-      'type': 'Quick Service',
-      'city': 'Faisalabad',
-      'address': 'Jaranwala Road, Near University',
-      'distance': '3.2 km',
-      'rating': 4.2,
-      'services': ['Tire Change', 'Battery Service', 'AC Repair'],
-      'phone': '+92 300 2345678',
-    },
-    {
-      'id': 'garage3',
-      'name': 'Elite Car Care',
-      'type': 'Premium Service',
-      'city': 'Faisalabad',
-      'address': 'Canal Road, DHA Phase 1',
-      'distance': '4.1 km',
-      'rating': 4.8,
-      'services': ['Full Detailing', 'Paint Work', 'Interior Cleaning'],
-      'phone': '+92 300 3456789',
-    },
-    {
-      'id': 'garage4',
-      'name': 'Roadside Assistance',
-      'type': 'Emergency Service',
-      'city': 'Faisalabad',
-      'address': '24/7 Mobile Service',
-      'distance': '1.8 km',
-      'rating': 4.0,
-      'services': ['Towing', 'Jump Start', 'Flat Tire'],
-      'phone': '+92 300 4567890',
-    },
-    {
-      'id': 'garage5',
-      'name': 'Metro Auto Workshop',
-      'type': 'Full Service Garage',
-      'city': 'Lahore',
-      'address': 'MM Alam Road, Gulberg',
-      'distance': '5.2 km',
-      'rating': 4.3,
-      'services': ['Engine Repair', 'Transmission', 'Electrical'],
-      'phone': '+92 300 5678901',
-    },
-    {
-      'id': 'garage6',
-      'name': 'Speed Auto Care',
-      'type': 'Quick Service',
-      'city': 'Lahore',
-      'address': 'Liberty Market, Main Boulevard',
-      'distance': '3.8 km',
-      'rating': 4.1,
-      'services': ['Oil Change', 'Tire Service', 'Battery Check'],
-      'phone': '+92 300 6789012',
-    },
-    {
-      'id': 'garage7',
-      'name': 'Premium Car Detailing',
-      'type': 'Premium Service',
-      'city': 'Lahore',
-      'address': 'DHA Phase 5, Y Block',
-      'distance': '6.5 km',
-      'rating': 4.7,
-      'services': ['Car Wash', 'Interior Detailing', 'Paint Protection'],
-      'phone': '+92 300 7890123',
-    },
-    // Karachi Services
-    {
-      'id': 'garage8',
-      'name': 'Karachi Auto Hub',
-      'type': 'Full Service Garage',
-      'city': 'Karachi',
-      'address': 'Clifton Block 2, Main Khayaban',
-      'distance': '4.2 km',
-      'rating': 4.4,
-      'services': ['Engine Service', 'AC Repair', 'Brake Service'],
-      'phone': '+92 300 8901234',
-    },
-    {
-      'id': 'garage9',
-      'name': 'Quick Fix Karachi',
-      'type': 'Quick Service',
-      'city': 'Karachi',
-      'address': 'Gulshan-e-Iqbal, Block 13',
-      'distance': '2.9 km',
-      'rating': 4.0,
-      'services': ['Tire Change', 'Oil Service', 'Battery Replacement'],
-      'phone': '+92 300 9012345',
-    },
-    {
-      'id': 'garage10',
-      'name': 'Coastal Emergency Service',
-      'type': 'Emergency Service',
-      'city': 'Karachi',
-      'address': '24/7 Mobile Service - All Areas',
-      'distance': '1.5 km',
-      'rating': 4.2,
-      'services': ['Towing', 'Jump Start', 'Emergency Repair'],
-      'phone': '+92 300 0123456',
-    },
-    // Islamabad Services
-    {
-      'id': 'garage11',
-      'name': 'Capital Auto Service',
-      'type': 'Full Service Garage',
-      'city': 'Islamabad',
-      'address': 'F-7 Markaz, Jinnah Avenue',
-      'distance': '3.1 km',
-      'rating': 4.6,
-      'services': ['Complete Service', 'Engine Overhaul', 'Transmission'],
-      'phone': '+92 300 1234567',
-    },
-    {
-      'id': 'garage12',
-      'name': 'Blue Area Motors',
-      'type': 'Premium Service',
-      'city': 'Islamabad',
-      'address': 'Blue Area, Fazal Haq Road',
-      'distance': '2.7 km',
-      'rating': 4.8,
-      'services': ['Luxury Car Service', 'Paint Work', 'Interior Care'],
-      'phone': '+92 300 2345678',
-    },
-    {
-      'id': 'garage13',
-      'name': 'Express Auto Fix',
-      'type': 'Quick Service',
-      'city': 'Islamabad',
-      'address': 'G-9 Markaz, Kashmir Highway',
-      'distance': '4.3 km',
-      'rating': 4.1,
-      'services': ['Quick Oil Change', 'Tire Service', 'AC Service'],
-      'phone': '+92 300 3456789',
-    },
-    // Rawalpindi Services
-    {
-      'id': 'garage14',
-      'name': 'Pindi Auto Works',
-      'type': 'Full Service Garage',
-      'city': 'Rawalpindi',
-      'address': 'Saddar Bazaar, Committee Chowk',
-      'distance': '2.8 km',
-      'rating': 4.3,
-      'services': ['Engine Repair', 'Body Work', 'Electrical'],
-      'phone': '+92 300 4567890',
-    },
-    {
-      'id': 'garage15',
-      'name': 'Cantonment Car Care',
-      'type': 'Premium Service',
-      'city': 'Rawalpindi',
-      'address': 'Mall Road, Cantonment',
-      'distance': '3.5 km',
-      'rating': 4.5,
-      'services': ['Premium Wash', 'Detailing', 'Paint Protection'],
-      'phone': '+92 300 5678901',
-    },
-    {
-      'id': 'garage16',
-      'name': 'Rapid Response Service',
-      'type': 'Emergency Service',
-      'city': 'Rawalpindi',
-      'address': '24/7 Mobile Service',
-      'distance': '1.2 km',
-      'rating': 4.0,
-      'services': ['Emergency Towing', 'Roadside Assistance', 'Jump Start'],
-      'phone': '+92 300 6789012',
-    },
-    // Abbottabad Services
-    {
-      'id': 'garage17',
-      'name': 'Mountain Auto Service',
-      'type': 'Full Service Garage',
-      'city': 'Abbottabad',
-      'address': 'Mansehra Road, Near Ayub Park',
-      'distance': '2.1 km',
-      'rating': 4.4,
-      'services': ['Engine Service', 'Brake Repair', 'AC Service'],
-      'phone': '+92 300 7890123',
-    },
-    {
-      'id': 'garage18',
-      'name': 'Hill Station Motors',
-      'type': 'Quick Service',
-      'city': 'Abbottabad',
-      'address': 'Supply Bazaar, Main GT Road',
-      'distance': '1.8 km',
-      'rating': 4.2,
-      'services': ['Oil Change', 'Tire Service', 'Battery Check'],
-      'phone': '+92 300 8901234',
-    },
-    {
-      'id': 'garage19',
-      'name': 'Alpine Car Care',
-      'type': 'Premium Service',
-      'city': 'Abbottabad',
-      'address': 'Jinnahabad, Main Circular Road',
-      'distance': '3.2 km',
-      'rating': 4.6,
-      'services': ['Car Detailing', 'Interior Cleaning', 'Wax Service'],
-      'phone': '+92 300 9012345',
-    },
-    {
-      'id': 'garage20',
-      'name': 'Valley Emergency Service',
-      'type': 'Emergency Service',
-      'city': 'Abbottabad',
-      'address': '24/7 Mobile Service - All Areas',
-      'distance': '0.9 km',
-      'rating': 4.1,
-      'services': ['Emergency Repair', 'Towing', 'Roadside Help'],
-      'phone': '+92 300 0123456',
-    },
-  ];
+          final services =
+              snapshot.data?.docs.map((doc) {
+                final data = doc.data();
+                return {'id': doc.id, ...data};
+              }).toList() ??
+              [];
 
-  List<Map<String, dynamic>> get _filteredServices {
-    return _serviceLocations.where((service) {
-      bool cityMatch = service['city'] == _selectedCity;
-      bool typeMatch =
-          _selectedServiceType == 'All Services' ||
-          service['type'] == _selectedServiceType;
-      return cityMatch && typeMatch;
-    }).toList();
+          final cities = _valuesFrom(services, 'city');
+          final categories = _valuesFrom(services, 'category');
+          final filtered =
+              services.where((service) {
+                final city = service['city']?.toString() ?? '';
+                final category = service['category']?.toString() ?? '';
+                return (_selectedCity == 'All' || city == _selectedCity) &&
+                    (_selectedCategory == 'All' ||
+                        category == _selectedCategory);
+              }).toList();
+
+          return Column(
+            children: [
+              _Filters(
+                cities: cities,
+                categories: categories,
+                selectedCity: _selectedCity,
+                selectedCategory: _selectedCategory,
+                onCityChanged: (value) => setState(() => _selectedCity = value),
+                onCategoryChanged:
+                    (value) => setState(() => _selectedCategory = value),
+              ),
+              Expanded(
+                child:
+                    filtered.isEmpty
+                        ? _EmptyState(
+                          icon: Icons.search_off,
+                          title: 'No services found',
+                          message: 'Try another city or category.',
+                        )
+                        : ListView.builder(
+                          padding: const EdgeInsets.all(16),
+                          itemCount: filtered.length,
+                          itemBuilder:
+                              (context, index) => _ServiceCard(
+                                service: filtered[index],
+                                onTap:
+                                    () => _showServiceDetails(
+                                      context,
+                                      filtered[index],
+                                    ),
+                              ),
+                        ),
+              ),
+            ],
+          );
+        },
+      ),
+    );
   }
 
-  void _showServiceDetails(Map<String, dynamic> service) {
+  List<String> _valuesFrom(List<Map<String, dynamic>> items, String field) {
+    final values =
+        items
+            .map((item) => item[field]?.toString().trim() ?? '')
+            .where((value) => value.isNotEmpty)
+            .toSet()
+            .toList()
+          ..sort();
+    return ['All', ...values];
+  }
+
+  void _showServiceDetails(BuildContext context, Map<String, dynamic> service) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder:
-          (context) => Container(
-            height: MediaQuery.of(context).size.height * 0.6,
-            decoration: BoxDecoration(
-              color: AppTheme.surface,
-              borderRadius: const BorderRadius.vertical(
-                top: Radius.circular(20),
-              ),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Handle bar
-                  Center(
-                    child: Container(
-                      width: 40,
-                      height: 4,
-                      decoration: BoxDecoration(
-                        color: AppTheme.inputBorder,
-                        borderRadius: BorderRadius.circular(2),
-                      ),
+          (context) => DraggableScrollableSheet(
+            initialChildSize: 0.72,
+            minChildSize: 0.45,
+            maxChildSize: 0.9,
+            builder:
+                (context, controller) => Container(
+                  decoration: const BoxDecoration(
+                    color: AppTheme.surface,
+                    borderRadius: BorderRadius.vertical(
+                      top: Radius.circular(20),
                     ),
                   ),
-                  const SizedBox(height: 20),
-
-                  // Service name and rating
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  child: ListView(
+                    controller: controller,
+                    padding: const EdgeInsets.all(20),
                     children: [
-                      Expanded(
-                        child: Text(
-                          service['name'],
-                          style: const TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.bold,
-                            color: AppTheme.textPrimary,
+                      Center(
+                        child: Container(
+                          width: 40,
+                          height: 4,
+                          decoration: BoxDecoration(
+                            color: AppTheme.inputBorder,
+                            borderRadius: BorderRadius.circular(2),
                           ),
                         ),
                       ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 6,
+                      const SizedBox(height: 20),
+                      Text(
+                        service['name']?.toString() ?? 'Service',
+                        style: const TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                          color: AppTheme.textPrimary,
                         ),
-                        decoration: BoxDecoration(
-                          color: AppTheme.buttonPrimary,
-                          borderRadius: BorderRadius.circular(20),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        service['description']?.toString() ??
+                            'No description provided.',
+                        style: const TextStyle(
+                          color: AppTheme.textSecondary,
+                          fontSize: 15,
                         ),
-                        child: Text(
-                          '${service['rating']}⭐',
-                          style: const TextStyle(
-                            color: AppTheme.buttonText,
-                            fontWeight: FontWeight.bold,
+                      ),
+                      const SizedBox(height: 16),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          _InfoChip(
+                            icon: Icons.category,
+                            text: service['category']?.toString() ?? 'General',
                           ),
-                        ),
-                      ),
-                    ],
-                  ),
-
-                  const SizedBox(height: 8),
-                  Text(
-                    service['type'],
-                    style: TextStyle(
-                      fontSize: 16,
-                      color: AppTheme.textSecondary,
-                    ),
-                  ),
-
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      Icon(
-                        Icons.location_on,
-                        size: 16,
-                        color: AppTheme.textSecondary,
-                      ),
-                      const SizedBox(width: 4),
-                      Expanded(
-                        child: Text(
-                          service['address'],
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: AppTheme.textSecondary,
+                          _InfoChip(
+                            icon: Icons.access_time,
+                            text: service['duration']?.toString() ?? 'N/A',
                           ),
-                        ),
-                      ),
-                    ],
-                  ),
-
-                  const SizedBox(height: 20),
-
-                  // Services offered
-                  const Text(
-                    'Services Offered:',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: AppTheme.textPrimary,
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children:
-                        (service['services'] as List<String>).map((
-                          serviceItem,
-                        ) {
-                          return Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 6,
+                          _InfoChip(
+                            icon: Icons.payments,
+                            text: 'Rs. ${_priceText(service['price'])}',
+                          ),
+                          if ((service['city']?.toString() ?? '').isNotEmpty)
+                            _InfoChip(
+                              icon: Icons.location_city,
+                              text: service['city'].toString(),
                             ),
-                            decoration: BoxDecoration(
-                              color: AppTheme.accent.withOpacity(0.15),
-                              borderRadius: BorderRadius.circular(20),
-                              border: Border.all(color: AppTheme.accent),
-                            ),
-                            child: Text(
-                              serviceItem,
-                              style: const TextStyle(
-                                color: AppTheme.accent,
-                                fontWeight: FontWeight.w500,
-                              ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      if ((service['businessName']?.toString() ?? '')
+                          .isNotEmpty)
+                        _DetailRow(
+                          icon: Icons.garage,
+                          label: 'Garage',
+                          value: service['businessName'].toString(),
+                        ),
+                      if ((service['address']?.toString() ?? '').isNotEmpty)
+                        _DetailRow(
+                          icon: Icons.location_on,
+                          label: 'Address',
+                          value: service['address'].toString(),
+                        ),
+                      if ((service['phone']?.toString() ?? '').isNotEmpty)
+                        _DetailRow(
+                          icon: Icons.phone,
+                          label: 'Phone',
+                          value: service['phone'].toString(),
+                        ),
+                      const SizedBox(height: 24),
+                      ElevatedButton.icon(
+                        onPressed: () {
+                          Navigator.pop(context);
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const BookingPage(),
                             ),
                           );
-                        }).toList(),
-                  ),
-
-                  const SizedBox(height: 20),
-
-                  // Contact and action buttons
-                  Row(
-                    children: [
-                      Expanded(
-                        child: ElevatedButton.icon(
-                          onPressed: () {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text('Calling ${service['phone']}'),
-                              ),
-                            );
-                          },
-                          icon: Icon(Icons.phone, color: AppTheme.buttonText),
-                          label: const Text(
-                            'Call',
-                            style: TextStyle(color: AppTheme.buttonText),
-                          ),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppTheme.success,
-                            foregroundColor: AppTheme.buttonText,
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: ElevatedButton.icon(
-                          onPressed: () {
-                            Navigator.pop(context);
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Booking feature coming soon!'),
-                              ),
-                            );
-                          },
-                          icon: const Icon(
-                            Icons.calendar_today,
-                            color: AppTheme.buttonText,
-                          ),
-                          label: const Text(
-                            'Book',
-                            style: TextStyle(color: AppTheme.buttonText),
-                          ),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppTheme.primary,
-                            foregroundColor: AppTheme.buttonText,
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                          ),
-                        ),
+                        },
+                        icon: const Icon(Icons.calendar_today),
+                        label: const Text('Book this service'),
                       ),
                     ],
                   ),
-                ],
-              ),
-            ),
+                ),
           ),
     );
   }
+}
+
+class _Filters extends StatelessWidget {
+  const _Filters({
+    required this.cities,
+    required this.categories,
+    required this.selectedCity,
+    required this.selectedCategory,
+    required this.onCityChanged,
+    required this.onCategoryChanged,
+  });
+
+  final List<String> cities;
+  final List<String> categories;
+  final String selectedCity;
+  final String selectedCategory;
+  final ValueChanged<String> onCityChanged;
+  final ValueChanged<String> onCategoryChanged;
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text(
-          'Nearby Services',
-          style: TextStyle(color: AppTheme.textPrimary),
-        ),
-        backgroundColor: AppTheme.surface,
-        elevation: 0,
-      ),
-      body: Column(
+    return Container(
+      padding: const EdgeInsets.all(16),
+      color: AppTheme.surface,
+      child: Row(
         children: [
-          // Filter Section
-          Container(
-            padding: const EdgeInsets.all(16),
-            color: AppTheme.surface,
-            child: Column(
-              children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: DropdownButtonFormField<String>(
-                        value: _selectedCity,
-                        decoration: const InputDecoration(
-                          labelText: 'Select City',
-                          border: OutlineInputBorder(),
-                          contentPadding: EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 8,
-                          ),
-                        ),
-                        items:
-                            _cities.map((city) {
-                              return DropdownMenuItem(
-                                value: city,
-                                child: Text(city),
-                              );
-                            }).toList(),
-                        onChanged: (value) {
-                          setState(() {
-                            _selectedCity = value!;
-                          });
-                        },
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: DropdownButtonFormField<String>(
-                        value: _selectedServiceType,
-                        decoration: const InputDecoration(
-                          labelText: 'Service Type',
-                          border: OutlineInputBorder(),
-                          contentPadding: EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 8,
-                          ),
-                        ),
-                        items:
-                            _serviceTypes.map((type) {
-                              return DropdownMenuItem(
-                                value: type,
-                                child: Text(
-                                  type,
-                                  style: const TextStyle(fontSize: 12),
-                                ),
-                              );
-                            }).toList(),
-                        onChanged: (value) {
-                          setState(() {
-                            _selectedServiceType = value!;
-                          });
-                        },
-                      ),
-                    ),
-                  ],
-                ),
-              ],
+          Expanded(
+            child: DropdownButtonFormField<String>(
+              value: cities.contains(selectedCity) ? selectedCity : 'All',
+              decoration: const InputDecoration(labelText: 'City'),
+              items:
+                  cities
+                      .map(
+                        (city) =>
+                            DropdownMenuItem(value: city, child: Text(city)),
+                      )
+                      .toList(),
+              onChanged: (value) => value == null ? null : onCityChanged(value),
             ),
           ),
-
-          // Services List
+          const SizedBox(width: 12),
           Expanded(
-            child:
-                _filteredServices.isEmpty
-                    ? Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            Icons.search_off,
-                            size: 64,
-                            color: AppTheme.textSecondary,
+            child: DropdownButtonFormField<String>(
+              value:
+                  categories.contains(selectedCategory)
+                      ? selectedCategory
+                      : 'All',
+              decoration: const InputDecoration(labelText: 'Category'),
+              items:
+                  categories
+                      .map(
+                        (category) => DropdownMenuItem(
+                          value: category,
+                          child: Text(
+                            category,
+                            overflow: TextOverflow.ellipsis,
                           ),
-                          const SizedBox(height: 16),
-                          Text(
-                            'No services found',
-                            style: TextStyle(
-                              fontSize: 18,
-                              color: AppTheme.textPrimary,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            'Try selecting a different city or service type',
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: AppTheme.textSecondary,
-                            ),
-                          ),
-                        ],
-                      ),
-                    )
-                    : ListView.builder(
-                      padding: const EdgeInsets.all(16),
-                      itemCount: _filteredServices.length,
-                      itemBuilder: (context, index) {
-                        final service = _filteredServices[index];
-                        return _buildServiceCard(service);
-                      },
-                    ),
+                        ),
+                      )
+                      .toList(),
+              onChanged:
+                  (value) => value == null ? null : onCategoryChanged(value),
+            ),
           ),
         ],
       ),
     );
   }
+}
 
-  Widget _buildServiceCard(Map<String, dynamic> service) {
+class _ServiceCard extends StatelessWidget {
+  const _ServiceCard({required this.service, required this.onTap});
+
+  final Map<String, dynamic> service;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
-      elevation: 2,
       color: AppTheme.card,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-      child: InkWell(
-        onTap: () => _showServiceDetails(service),
-        borderRadius: BorderRadius.circular(14),
-        child: Padding(
-          padding: const EdgeInsets.all(10),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Service Image Placeholder
-                  Container(
-                    width: 56,
-                    height: 56,
-                    decoration: BoxDecoration(
-                      color: AppTheme.inputFill,
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: AppTheme.inputFill),
-                    ),
-                    child: Icon(
-                      Icons.build_circle,
-                      size: 28,
-                      color: AppTheme.buttonPrimary,
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  // Service Details
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Expanded(
-                              child: Text(
-                                service['name'],
-                                style: const TextStyle(
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.bold,
-                                  color: AppTheme.textPrimary,
-                                ),
-                              ),
-                            ),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 7,
-                                vertical: 3,
-                              ),
-                              decoration: BoxDecoration(
-                                color: AppTheme.buttonPrimary,
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                              child: Text(
-                                '${service['rating']}⭐',
-                                style: const TextStyle(
-                                  color: AppTheme.buttonText,
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          service['type'],
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: AppTheme.secondary,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                        const SizedBox(height: 2),
-                        Row(
-                          children: [
-                            Icon(
-                              Icons.location_on,
-                              size: 13,
-                              color: AppTheme.secondary,
-                            ),
-                            const SizedBox(width: 2),
-                            Expanded(
-                              child: Text(
-                                service['address'],
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  color: AppTheme.secondary,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 2),
-                        Row(
-                          children: [
-                            Icon(
-                              Icons.directions,
-                              size: 13,
-                              color: AppTheme.secondary,
-                            ),
-                            const SizedBox(width: 2),
-                            Text(
-                              service['distance'],
-                              style: TextStyle(
-                                fontSize: 11,
-                                color: AppTheme.secondary,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              // Services offered
-              Wrap(
-                spacing: 5,
-                runSpacing: 5,
-                children:
-                    (service['services'] as List<String>).take(3).map((
-                      serviceItem,
-                    ) {
-                      return Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 7,
-                          vertical: 3,
-                        ),
-                        decoration: BoxDecoration(
-                          color: AppTheme.inputFill,
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(color: AppTheme.inputFill),
-                        ),
-                        child: Text(
-                          serviceItem,
-                          style: const TextStyle(
-                            color: AppTheme.primary,
-                            fontSize: 10,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      );
-                    }).toList(),
-              ),
-              const SizedBox(height: 8),
-              // Action buttons
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text('Calling ${service['phone']}'),
-                          ),
-                        );
-                      },
-                      icon: const Icon(Icons.phone, size: 14),
-                      label: const Text('Call', style: TextStyle(fontSize: 11)),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: AppTheme.success,
-                        side: const BorderSide(color: AppTheme.success),
-                        padding: const EdgeInsets.symmetric(vertical: 7),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 7),
-                  Expanded(
-                    child: ElevatedButton.icon(
-                      onPressed: () => _showServiceDetails(service),
-                      icon: const Icon(Icons.info, size: 14),
-                      label: const Text(
-                        'Details',
-                        style: TextStyle(fontSize: 11),
-                      ),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppTheme.primary,
-                        foregroundColor: AppTheme.buttonText,
-                        padding: const EdgeInsets.symmetric(vertical: 7),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
+      child: ListTile(
+        onTap: onTap,
+        leading: CircleAvatar(
+          backgroundColor: AppTheme.inputFill,
+          child: Icon(Icons.build_circle, color: AppTheme.primary),
+        ),
+        title: Text(
+          service['name']?.toString() ?? 'Service',
+          style: const TextStyle(
+            fontWeight: FontWeight.bold,
+            color: AppTheme.textPrimary,
           ),
+        ),
+        subtitle: Text(
+          [
+            service['businessName'] ?? service['providerName'],
+            service['city'],
+            service['category'],
+          ].whereType<Object>().map((value) => value.toString()).join(' • '),
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(color: AppTheme.textSecondary),
+        ),
+        trailing: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            Text(
+              'Rs. ${_priceText(service['price'])}',
+              style: const TextStyle(
+                color: AppTheme.primary,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 4),
+            const Icon(Icons.chevron_right, color: AppTheme.textSecondary),
+          ],
         ),
       ),
     );
   }
+}
+
+class _InfoChip extends StatelessWidget {
+  const _InfoChip({required this.icon, required this.text});
+
+  final IconData icon;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Chip(
+      avatar: Icon(icon, size: 16, color: AppTheme.primary),
+      label: Text(text),
+      backgroundColor: AppTheme.inputFill,
+      side: const BorderSide(color: AppTheme.inputBorder),
+    );
+  }
+}
+
+class _DetailRow extends StatelessWidget {
+  const _DetailRow({
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
+
+  final IconData icon;
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 18, color: AppTheme.textSecondary),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              '$label: $value',
+              style: const TextStyle(color: AppTheme.textSecondary),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _EmptyState extends StatelessWidget {
+  const _EmptyState({
+    required this.icon,
+    required this.title,
+    required this.message,
+  });
+
+  final IconData icon;
+  final String title;
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, size: 64, color: AppTheme.textSecondary),
+            const SizedBox(height: 16),
+            Text(
+              title,
+              style: const TextStyle(
+                color: AppTheme.textPrimary,
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              message,
+              style: const TextStyle(color: AppTheme.textSecondary),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+String _priceText(Object? value) {
+  if (value is num) {
+    return value.toStringAsFixed(value.truncateToDouble() == value ? 0 : 2);
+  }
+  return value?.toString() ?? '0';
 }
