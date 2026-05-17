@@ -13,6 +13,7 @@ import 'package:gearup_garage/presentation/customer/customer_book_service.dart';
 import 'package:gearup_garage/presentation/customer/customer_offers.dart';
 import 'package:gearup_garage/core/theme/app_theme.dart';
 import 'package:gearup_garage/core/ui/app_scaffold.dart';
+import 'package:gearup_garage/data/repositories/garage_repository.dart';
 
 class MyHome extends StatefulWidget {
   const MyHome({super.key});
@@ -24,8 +25,8 @@ class _MyHomeState extends State<MyHome> {
   int _selectedIndex = 0;
 
   // User data for drawer header
-  String _drawerUserName = 'Atta Noor';
-  String _drawerUserEmail = 'Attanoor922@gmail.com';
+  String _drawerUserName = 'Guest';
+  String _drawerUserEmail = 'No email';
   final User? _currentUser = FirebaseAuth.instance.currentUser;
 
   final List<Widget> _pages = [
@@ -330,34 +331,9 @@ class _MyHomeState extends State<MyHome> {
 }
 
 class MainHomeContent extends StatelessWidget {
-  final List<Map<String, String>> featuredCars = [
-    {
-      'title': 'Rolls Royce 2025',
-      'price': 'PKR 5,100,000',
-      'location': 'Faisalabad',
-      'image': 'assets/images/RollsRoyce.jpg',
-    },
-    {
-      'title': 'Maseriti V12 2025',
-      'price': 'PKR 4,200,000',
-      'location': 'Faisalabad',
-      'image': 'assets/images/Maserati.jpg',
-    },
-    {
-      'title': 'BMW Bike 3 2025',
-      'price': 'PKR 9,350,000',
-      'location': 'Karachi',
-      'image': 'assets/images/bmw.jpg',
-    },
-    {
-      'title': 'Lamborghini Bike 2022',
-      'price': 'PKR 2,700,000',
-      'location': 'Karachi',
-      'image': 'assets/images/lemborgini.jpg',
-    },
-  ];
-
   MainHomeContent({super.key});
+
+  final GarageRepository _repository = GarageRepository();
 
   @override
   Widget build(BuildContext context) {
@@ -396,22 +372,51 @@ class MainHomeContent extends StatelessWidget {
           ),
 
           const SizedBox(height: 20),
-          SectionTitle('Featured Cars'),
-          SizedBox(
-            height: 280,
-            child: ListView.builder(
-              scrollDirection: Axis.horizontal,
-              itemCount: featuredCars.length,
-              itemBuilder: (context, index) {
-                final car = featuredCars[index];
-                return FeaturedCarCard(
-                  title: car['title']!,
-                  price: car['price']!,
-                  location: car['location']!,
-                  imageUrl: car['image']!,
+          SectionTitle('Featured Vehicles'),
+          StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+            stream: _repository.activeVehicleListings(),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const SizedBox(
+                  height: 180,
+                  child: Center(
+                    child: CircularProgressIndicator(color: AppTheme.secondary),
+                  ),
                 );
-              },
-            ),
+              }
+
+              final vehicles =
+                  snapshot.data?.docs
+                      .map((doc) => {'id': doc.id, ...doc.data()})
+                      .where((vehicle) => vehicle['type'] == 'sell')
+                      .take(8)
+                      .toList() ??
+                  [];
+
+              if (vehicles.isEmpty) {
+                return const _HomeEmptyState(
+                  message: 'Vehicle listings posted by users will appear here.',
+                );
+              }
+
+              return SizedBox(
+                height: 280,
+                child: ListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: vehicles.length,
+                  itemBuilder: (context, index) {
+                    final car = vehicles[index];
+                    return FeaturedCarCard(
+                      title: car['title']?.toString() ?? 'Vehicle',
+                      price: 'PKR ${_formatPrice(car['price'])}',
+                      location: car['location']?.toString() ?? 'Not specified',
+                      imageUrl:
+                          car['image']?.toString() ?? 'assets/images/car.png',
+                    );
+                  },
+                ),
+              );
+            },
           ),
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 4.0, horizontal: 8.0),
@@ -441,19 +446,45 @@ class MainHomeContent extends StatelessWidget {
             ),
           ),
           SectionTitle('Popular Services'),
-          SizedBox(
-            height: 120,
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: const [
-                  ServiceCard(service: 'Oil Change'),
-                  ServiceCard(service: 'Brake Replacement'),
-                  ServiceCard(service: 'Battery Check'),
-                  ServiceCard(service: 'AC Repair'),
-                ],
-              ),
-            ),
+          StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+            stream: _repository.activeServices(),
+            builder: (context, snapshot) {
+              final services =
+                  snapshot.data?.docs
+                      .map((doc) => doc.data())
+                      .take(8)
+                      .toList() ??
+                  [];
+
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const SizedBox(
+                  height: 120,
+                  child: Center(
+                    child: CircularProgressIndicator(color: AppTheme.secondary),
+                  ),
+                );
+              }
+
+              if (services.isEmpty) {
+                return const _HomeEmptyState(
+                  message: 'Active services will appear here.',
+                );
+              }
+
+              return SizedBox(
+                height: 120,
+                child: ListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  itemCount: services.length,
+                  itemBuilder:
+                      (context, index) => ServiceCard(
+                        service:
+                            services[index]['name']?.toString() ?? 'Service',
+                      ),
+                ),
+              );
+            },
           ),
         ],
       ),
@@ -513,18 +544,38 @@ class FeaturedCarCard extends StatelessWidget {
               children: [
                 ClipRRect(
                   borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-                  child: Image.asset(
-                    imageUrl,
-                    height: 130,
-                    width: double.infinity,
-                    fit: BoxFit.cover,
-                    errorBuilder:
-                        (_, __, ___) => Container(
-                          height: 130,
-                          color: AppTheme.inputFill,
-                          child: Icon(Icons.image_not_supported, size: 50),
-                        ),
-                  ),
+                  child:
+                      imageUrl.startsWith('http')
+                          ? Image.network(
+                            imageUrl,
+                            height: 130,
+                            width: double.infinity,
+                            fit: BoxFit.cover,
+                            errorBuilder:
+                                (_, __, ___) => Container(
+                                  height: 130,
+                                  color: AppTheme.inputFill,
+                                  child: Icon(
+                                    Icons.image_not_supported,
+                                    size: 50,
+                                  ),
+                                ),
+                          )
+                          : Image.asset(
+                            imageUrl,
+                            height: 130,
+                            width: double.infinity,
+                            fit: BoxFit.cover,
+                            errorBuilder:
+                                (_, __, ___) => Container(
+                                  height: 130,
+                                  color: AppTheme.inputFill,
+                                  child: Icon(
+                                    Icons.image_not_supported,
+                                    size: 50,
+                                  ),
+                                ),
+                          ),
                 ),
                 Positioned(
                   left: 8,
@@ -601,18 +652,31 @@ class DashboardScreen extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Image.asset(
-              imageUrl,
-              width: double.infinity,
-              height: 250,
-              fit: BoxFit.cover,
-              errorBuilder:
-                  (_, __, ___) => Container(
-                    height: 250,
-                    color: AppTheme.inputFill,
-                    child: const Icon(Icons.image_not_supported, size: 80),
-                  ),
-            ),
+            imageUrl.startsWith('http')
+                ? Image.network(
+                  imageUrl,
+                  width: double.infinity,
+                  height: 250,
+                  fit: BoxFit.cover,
+                  errorBuilder:
+                      (_, __, ___) => Container(
+                        height: 250,
+                        color: AppTheme.inputFill,
+                        child: const Icon(Icons.image_not_supported, size: 80),
+                      ),
+                )
+                : Image.asset(
+                  imageUrl,
+                  width: double.infinity,
+                  height: 250,
+                  fit: BoxFit.cover,
+                  errorBuilder:
+                      (_, __, ___) => Container(
+                        height: 250,
+                        color: AppTheme.inputFill,
+                        child: const Icon(Icons.image_not_supported, size: 80),
+                      ),
+                ),
             Padding(
               padding: const EdgeInsets.all(16.0),
               child: Column(
@@ -642,7 +706,18 @@ class DashboardScreen extends StatelessWidget {
                   const SizedBox(height: 24),
                   Center(
                     child: ElevatedButton.icon(
-                      onPressed: () {
+                      onPressed: () async {
+                        await GarageRepository().addToCart(
+                          itemId: title,
+                          itemType: 'vehicle',
+                          item: {
+                            'title': title,
+                            'price': price,
+                            'location': location,
+                            'image': imageUrl,
+                          },
+                        );
+                        if (!context.mounted) return;
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(content: Text('Added to cart')),
                         );
@@ -765,11 +840,9 @@ class ServiceCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: () {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('$service service coming soon!'),
-            backgroundColor: AppTheme.primary,
-          ),
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => const ServicesPage()),
         );
       },
       child: Container(
@@ -838,4 +911,46 @@ class SectionTitle extends StatelessWidget {
       ),
     );
   }
+}
+
+class _HomeEmptyState extends StatelessWidget {
+  const _HomeEmptyState({required this.message});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 120,
+      alignment: Alignment.center,
+      padding: const EdgeInsets.symmetric(horizontal: 24),
+      child: Text(
+        message,
+        style: const TextStyle(color: AppTheme.textSecondary),
+        textAlign: TextAlign.center,
+      ),
+    );
+  }
+}
+
+int _parseInt(Object? value) {
+  if (value is int) return value;
+  if (value is num) return value.round();
+  return int.tryParse(
+        value?.toString().replaceAll(RegExp(r'[^0-9]'), '') ?? '',
+      ) ??
+      0;
+}
+
+String _formatPrice(Object? value) {
+  final price = _parseInt(value).toString();
+  final buffer = StringBuffer();
+  for (var i = 0; i < price.length; i++) {
+    final reverseIndex = price.length - i;
+    buffer.write(price[i]);
+    if (reverseIndex > 1 && reverseIndex % 3 == 1) {
+      buffer.write(',');
+    }
+  }
+  return buffer.toString();
 }
