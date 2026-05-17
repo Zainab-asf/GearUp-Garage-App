@@ -14,8 +14,6 @@ class _ProfileScreenState extends State<ProfilePage> {
   final User? _currentUser = FirebaseAuth.instance.currentUser;
   Map<String, dynamic> _user = {};
   bool _isLoading = true;
-  int _totalBookings = 0;
-  int _completedServices = 0;
 
   @override
   void initState() {
@@ -115,8 +113,6 @@ class _ProfileScreenState extends State<ProfilePage> {
                   },
                 ],
           };
-          _totalBookings = totalBookings;
-          _completedServices = completedServices;
           _isLoading = false;
         });
       } else {
@@ -133,8 +129,6 @@ class _ProfileScreenState extends State<ProfilePage> {
             'completedServices': completedServices,
             'vehicles': [],
           };
-          _totalBookings = totalBookings;
-          _completedServices = completedServices;
           _isLoading = false;
         });
       }

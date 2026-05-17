@@ -27,11 +27,7 @@ class _AdminDashboardState extends State<AdminDashboard>
   }
 
   // Approve or reject a service provider
-  Future<void> updateStatus(
-    String docId,
-    bool isApproved,
-    BuildContext context,
-  ) async {
+  Future<void> updateStatus(String docId, bool isApproved) async {
     try {
       await FirebaseFirestore.instance
           .collection('service_providers')
@@ -46,24 +42,22 @@ class _AdminDashboardState extends State<AdminDashboard>
         await _createDefaultServices(docId);
       }
 
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              isApproved
-                  ? 'Service Provider Approved!'
-                  : 'Service Provider Rejected!',
-            ),
-            backgroundColor: isApproved ? Colors.green : Colors.red,
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            isApproved
+                ? 'Service Provider Approved!'
+                : 'Service Provider Rejected!',
           ),
-        );
-      }
+          backgroundColor: isApproved ? Colors.green : Colors.red,
+        ),
+      );
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Failed to update status')),
-        );
-      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Failed to update status')));
     }
   }
 
@@ -121,9 +115,8 @@ class _AdminDashboardState extends State<AdminDashboard>
             icon: const Icon(Icons.logout),
             onPressed: () async {
               await FirebaseAuth.instance.signOut();
-              if (context.mounted) {
-                Navigator.pushReplacementNamed(context, 'login');
-              }
+              if (!mounted) return;
+              Navigator.pushReplacementNamed(context, 'login');
             },
           ),
         ],
@@ -521,14 +514,13 @@ class _AdminDashboardState extends State<AdminDashboard>
                       'createdAt': FieldValue.serverTimestamp(),
                       'createdBy': 'admin',
                     });
-                    if (mounted) {
-                      Navigator.pop(context);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Service added successfully!'),
-                        ),
-                      );
-                    }
+                    if (!mounted) return;
+                    Navigator.pop(context);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Service added successfully!'),
+                      ),
+                    );
                   }
                 },
                 child: const Text('Add'),
@@ -608,14 +600,13 @@ class _AdminDashboardState extends State<AdminDashboard>
                         'category': categoryController.text,
                         'updatedAt': FieldValue.serverTimestamp(),
                       });
-                  if (mounted) {
-                    Navigator.pop(context);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Service updated successfully!'),
-                      ),
-                    );
-                  }
+                  if (!mounted) return;
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Service updated successfully!'),
+                    ),
+                  );
                 },
                 child: const Text('Update'),
               ),
@@ -662,11 +653,10 @@ class _AdminDashboardState extends State<AdminDashboard>
           .collection('services')
           .doc(serviceId)
           .delete();
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Service deleted successfully!')),
-        );
-      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Service deleted successfully!')),
+      );
     }
   }
 
@@ -765,7 +755,7 @@ class _AdminDashboardState extends State<AdminDashboard>
                 children: [
                   Expanded(
                     child: ElevatedButton.icon(
-                      onPressed: () => updateStatus(doc.id, true, context),
+                      onPressed: () => updateStatus(doc.id, true),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.green,
                         foregroundColor: Colors.white,
@@ -777,7 +767,7 @@ class _AdminDashboardState extends State<AdminDashboard>
                   const SizedBox(width: 12),
                   Expanded(
                     child: ElevatedButton.icon(
-                      onPressed: () => updateStatus(doc.id, false, context),
+                      onPressed: () => updateStatus(doc.id, false),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.red,
                         foregroundColor: Colors.white,

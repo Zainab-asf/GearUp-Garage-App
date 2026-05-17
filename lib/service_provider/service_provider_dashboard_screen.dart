@@ -500,38 +500,34 @@ class _ServiceProviderDashboardState extends State<ServiceProviderDashboard>
                           .collection('services')
                           .add(serviceData);
 
-                      if (mounted) {
-                        Navigator.pop(context);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(
-                              'Service "${nameController.text}" added successfully!',
-                            ),
-                            backgroundColor: Colors.green,
-                          ),
-                        );
-                      }
-                    } catch (e) {
-                      if (mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text('Error adding service: $e'),
-                            backgroundColor: Colors.red,
-                          ),
-                        );
-                      }
-                    }
-                  } else {
-                    if (mounted) {
+                      if (!mounted) return;
+                      Navigator.pop(context);
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
+                        SnackBar(
                           content: Text(
-                            'Please fill in service name and ensure you are logged in',
+                            'Service "${nameController.text}" added successfully!',
                           ),
-                          backgroundColor: Colors.orange,
+                          backgroundColor: Colors.green,
+                        ),
+                      );
+                    } catch (e) {
+                      if (!mounted) return;
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Error adding service: $e'),
+                          backgroundColor: Colors.red,
                         ),
                       );
                     }
+                  } else {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text(
+                          'Please fill in service name and ensure you are logged in',
+                        ),
+                        backgroundColor: Colors.orange,
+                      ),
+                    );
                   }
                 },
                 child: const Text('Add'),

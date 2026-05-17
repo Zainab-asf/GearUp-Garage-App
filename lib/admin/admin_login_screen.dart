@@ -260,19 +260,6 @@ class _AdminLoginState extends State<AdminLogin> {
                         ],
                       ),
                       const SizedBox(height: 24),
-                      // Sign Up Link
-                      // Row(
-                      //   mainAxisAlignment: MainAxisAlignment.center,
-                      //   children: [
-                      //     Text('Don\'t have an account?', style: theme.textTheme.bodyMedium),
-                      //     TextButton(
-                      //       onPressed: () {
-                      //         // TODO: Implement sign up navigation if needed
-                      //       },
-                      //       child: const Text('Sign up'),
-                      //     ),
-                      //   ],
-                      // ),
                     ],
                   ),
                 ),
