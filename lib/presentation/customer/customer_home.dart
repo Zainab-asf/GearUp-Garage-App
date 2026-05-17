@@ -784,10 +784,9 @@ class QuickAccessItem extends StatelessWidget {
             );
             break;
           default:
-            // Show coming soon for any other features
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
-                content: Text('$label feature coming soon!'),
+                content: Text('$label is not available from this menu.'),
                 backgroundColor: AppTheme.primary,
               ),
             );
